@@ -1,0 +1,455 @@
+--▀█▀ ▄▀▄ █▀▀▄ █░█ ▄▀▀ █░█ ▄▀▀
+--░█░ █░█ █▐█▀ ▄▀▄ ░▀▄ █░█ ░▀▄
+--░▀░ ░▀░ ▀░▀▀ ▀░▀ ▀▀░ ▀▀▀ ▀▀░
+--made by torxsus
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+
+local Enabled = false
+local MarkerPart = nil
+
+local SavedModels = {}
+local Processing = {}
+local GuiDestroyed = false
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "HumanoidDebugTool"
+Gui.ResetOnSpawn = false
+Gui.Parent = Player:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.fromOffset(250, 140)
+Main.Position = UDim2.new(0.5, -125, 0.5, -70)
+Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Main.BorderSizePixel = 0
+Main.Parent = Gui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -45, 0, 35)
+Title.Position = UDim2.fromOffset(10, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Humanoid Debug Tool"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Main
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(35, 35)
+Close.Position = UDim2.new(1, -35, 0, 0)
+Close.BackgroundTransparency = 1
+Close.Text = "X"
+Close.TextColor3 = Color3.fromRGB(255, 80, 80)
+Close.TextSize = 18
+Close.Font = Enum.Font.GothamBold
+Close.Parent = Main
+
+local Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.new(1, -20, 0, 45)
+Toggle.Position = UDim2.fromOffset(10, 50)
+Toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Toggle.Text = "Humanoid Compact: OFF"
+Toggle.TextColor3 = Color3.new(1, 1, 1)
+Toggle.TextSize = 15
+Toggle.Font = Enum.Font.Gotham
+Toggle.Parent = Main
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = Toggle
+
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -20, 0, 25)
+Status.Position = UDim2.fromOffset(10, 100)
+Status.BackgroundTransparency = 1
+Status.Text = "Models: 0"
+Status.TextColor3 = Color3.fromRGB(180, 180, 180)
+Status.TextSize = 13
+Status.Font = Enum.Font.Gotham
+Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Parent = Main
+
+local function IsTarget(Model)
+	if not Model:IsA("Model") then
+		return false
+	end
+
+	if Players:GetPlayerFromCharacter(Model) then
+		return false
+	end
+
+	local Humanoid = Model:FindFirstChildOfClass("Humanoid")
+	local Root = Model:FindFirstChild("HumanoidRootPart")
+
+	if not Humanoid then
+		return false
+	end
+
+	if not Root then
+		return false
+	end
+
+	if not Root:IsA("BasePart") then
+		return false
+	end
+
+	return true
+end
+
+local function GetRoot(Model)
+	local Root = Model:FindFirstChild("HumanoidRootPart")
+
+	if Root and Root:IsA("BasePart") then
+		return Root
+	end
+
+	return nil
+end
+
+local function CreateMarker()
+	if MarkerPart and MarkerPart.Parent then
+		return true
+	end
+
+	local Character = Player.Character
+
+	if not Character then
+		return false
+	end
+
+	local PlayerRoot = Character:FindFirstChild("HumanoidRootPart")
+
+	if not PlayerRoot then
+		return false
+	end
+
+	local MarkerCFrame =
+		PlayerRoot.CFrame * CFrame.new(0, 1, -2)
+
+	MarkerPart = Instance.new("Part")
+	MarkerPart.Name = "MarkerPartTorx"
+	MarkerPart.Size = Vector3.new(2, 2, 2)
+	MarkerPart.CFrame = MarkerCFrame
+	MarkerPart.Anchored = true
+	MarkerPart.CanCollide = false
+	MarkerPart.CanTouch = false
+	MarkerPart.CanQuery = false
+	MarkerPart.CastShadow = false
+	MarkerPart.Transparency = 0.5
+	MarkerPart.Parent = workspace
+
+	return true
+end
+
+local function GetMarkerCFrame()
+	if MarkerPart and MarkerPart.Parent then
+		return MarkerPart.CFrame
+	end
+
+	return nil
+end
+
+local function SaveModel(Model)
+	if SavedModels[Model] then
+		return
+	end
+
+	local Data = {
+		Parts = {},
+		Humanoid = nil
+	}
+
+	local Humanoid = Model:FindFirstChildOfClass("Humanoid")
+
+	if Humanoid then
+		Data.Humanoid = {
+			WalkSpeed = Humanoid.WalkSpeed,
+			JumpPower = Humanoid.JumpPower,
+			AutoRotate = Humanoid.AutoRotate
+		}
+	end
+
+	for _, Object in ipairs(Model:GetDescendants()) do
+		if Object:IsA("BasePart") then
+			Data.Parts[Object] = {
+				CFrame = Object.CFrame,
+				Size = Object.Size,
+				Anchored = Object.Anchored,
+				CanCollide = Object.CanCollide,
+				CanTouch = Object.CanTouch,
+				CanQuery = Object.CanQuery
+			}
+		end
+	end
+
+	SavedModels[Model] = Data
+end
+
+local function CompactModel(Model)
+	if not Enabled then
+		return
+	end
+
+	if not IsTarget(Model) then
+		return
+	end
+
+	local MarkerCFrame = GetMarkerCFrame()
+
+	if not MarkerCFrame then
+		return
+	end
+
+	local Root = GetRoot(Model)
+
+	if not Root then
+		return
+	end
+
+	SaveModel(Model)
+
+	local Humanoid = Model:FindFirstChildOfClass("Humanoid")
+
+	if Humanoid then
+		Humanoid.WalkSpeed = 0
+		Humanoid.JumpPower = 0
+		Humanoid.AutoRotate = false
+	end
+
+	for _, Object in ipairs(Model:GetDescendants()) do
+		if Object:IsA("BasePart") then
+			Object.Size = Vector3.new(1, 1, 1)
+			Object.CFrame = MarkerCFrame
+			Object.Anchored = true
+			Object.CanCollide = false
+			Object.CanTouch = true
+			Object.CanQuery = false
+		end
+	end
+
+	Root.CFrame = MarkerCFrame
+	Root.Size = Vector3.new(1, 1, 1)
+	Root.Anchored = true
+	Root.CanCollide = false
+	Root.CanTouch = true
+	Root.CanQuery = false
+end
+
+local function ProcessModel(Model)
+	if not Enabled then
+		return
+	end
+
+	if Processing[Model] then
+		return
+	end
+
+	if not Model:IsA("Model") then
+		return
+	end
+
+	Processing[Model] = true
+
+	local StartTime = os.clock()
+
+	while Enabled
+		and Model.Parent
+		and not IsTarget(Model)
+		and os.clock() - StartTime < 5 do
+		task.wait(0.05)
+	end
+
+	if Enabled
+		and Model.Parent
+		and IsTarget(Model) then
+		CompactModel(Model)
+	end
+
+	Processing[Model] = nil
+end
+
+workspace.DescendantAdded:Connect(function(Object)
+	if not Enabled then
+		return
+	end
+
+	if not Object:IsA("Model") then
+		return
+	end
+
+	task.spawn(function()
+		ProcessModel(Object)
+	end)
+end)
+
+local function Enable()
+	Enabled = true
+
+	Toggle.Text = "Humanoid Compact: ON"
+	Toggle.BackgroundColor3 = Color3.fromRGB(60, 130, 70)
+
+	table.clear(SavedModels)
+	table.clear(Processing)
+
+	if not CreateMarker() then
+		Enabled = false
+
+		Toggle.Text = "Humanoid Compact: OFF"
+		Toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+
+		return
+	end
+
+	local Count = 0
+
+	for _, Object in ipairs(workspace:GetDescendants()) do
+		if IsTarget(Object) then
+			CompactModel(Object)
+			Count += 1
+		end
+	end
+
+	Status.Text = "Models: " .. Count
+end
+
+local function Disable()
+	Enabled = false
+
+	Toggle.Text = "Humanoid Compact: OFF"
+	Toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+
+	for Model, Data in pairs(SavedModels) do
+		if Model and Model.Parent then
+			for Part, PartData in pairs(Data.Parts) do
+				if Part and Part.Parent then
+					Part.CFrame = PartData.CFrame
+					Part.Size = PartData.Size
+					Part.Anchored = PartData.Anchored
+					Part.CanCollide = PartData.CanCollide
+					Part.CanTouch = PartData.CanTouch
+					Part.CanQuery = PartData.CanQuery
+				end
+			end
+
+			local Humanoid =
+				Model:FindFirstChildOfClass("Humanoid")
+
+			if Humanoid and Data.Humanoid then
+				Humanoid.WalkSpeed = Data.Humanoid.WalkSpeed
+				Humanoid.JumpPower = Data.Humanoid.JumpPower
+				Humanoid.AutoRotate = Data.Humanoid.AutoRotate
+			end
+		end
+	end
+
+	table.clear(SavedModels)
+	table.clear(Processing)
+
+	if MarkerPart then
+		MarkerPart:Destroy()
+		MarkerPart = nil
+	end
+
+	Status.Text = "Models: 0"
+end
+
+task.spawn(function()
+	while not GuiDestroyed do
+		if Enabled then
+			for _, Object in ipairs(workspace:GetDescendants()) do
+				if IsTarget(Object)
+					and not Processing[Object] then
+
+					task.spawn(function()
+						ProcessModel(Object)
+					end)
+				end
+			end
+
+			local Count = 0
+
+			for Model in pairs(SavedModels) do
+				if Model
+					and Model.Parent
+					and IsTarget(Model) then
+
+					Count += 1
+				end
+			end
+
+			Status.Text = "Models: " .. Count
+		end
+
+		task.wait(0.15)
+	end
+end)
+
+Toggle.MouseButton1Click:Connect(function()
+	if Enabled then
+		Disable()
+	else
+		Enable()
+	end
+end)
+
+Close.MouseButton1Click:Connect(function()
+	if Enabled then
+		Disable()
+	end
+
+	GuiDestroyed = true
+
+	if MarkerPart then
+		MarkerPart:Destroy()
+		MarkerPart = nil
+	end
+
+	Gui:Destroy()
+end)
+
+local Dragging = false
+local DragStart
+local StartPosition
+
+Title.InputBegan:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		Dragging = true
+		DragStart = Input.Position
+		StartPosition = Main.Position
+
+		Input.Changed:Connect(function()
+			if Input.UserInputState == Enum.UserInputState.End then
+				Dragging = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(Input)
+	if not Dragging then
+		return
+	end
+
+	if Input.UserInputType == Enum.UserInputType.MouseMovement
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		local Delta = Input.Position - DragStart
+
+		Main.Position = UDim2.new(
+			StartPosition.X.Scale,
+			StartPosition.X.Offset + Delta.X,
+			StartPosition.Y.Scale,
+			StartPosition.Y.Offset + Delta.Y
+		)
+	end
+end)
