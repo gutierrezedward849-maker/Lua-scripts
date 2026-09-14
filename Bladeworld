@@ -1,0 +1,733 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+local bladeRunning = false
+local orbRunning = false
+local animationToggle = false
+
+local function getCharacter()
+	return player.Character or player.CharacterAdded:Wait()
+end
+
+local function getRoot()
+	local character = getCharacter()
+	return character:FindFirstChild("HumanoidRootPart")
+end
+
+local function getTool()
+	local character = player.Character
+
+	if not character then
+		return nil
+	end
+
+	for _, object in ipairs(character:GetChildren()) do
+		if object:IsA("Tool") then
+			return object
+		end
+	end
+
+	return nil
+end
+
+local function playSwing()
+	local character = getCharacter()
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local tool = getTool()
+
+	if not humanoid or not tool then
+		return
+	end
+
+	local animation
+
+	if animationToggle == false then
+		animation = tool:FindFirstChild("Animation")
+		animationToggle = true
+	else
+		animation = tool:FindFirstChild("Animation2")
+		animationToggle = false
+	end
+
+	if animation and animation:IsA("Animation") then
+		local track = humanoid:LoadAnimation(animation)
+		track:Play()
+	end
+end
+
+local function getRemotes()
+	local tool = getTool()
+
+	if not tool then
+		return nil, nil
+	end
+
+	local bladeRemote
+	local nothingRemote
+
+	local bladePowerGiver = workspace:FindFirstChild("BladePowerGiver")
+
+	if bladePowerGiver then
+		bladeRemote = bladePowerGiver:FindFirstChild("RemoteEvent")
+	end
+
+	local handle = tool:FindFirstChild("Handle")
+
+	if handle then
+		local nothing = handle:FindFirstChild("nothing")
+
+		if nothing then
+			nothingRemote = nothing:FindFirstChild("RemoteEvent")
+		end
+	end
+
+	return bladeRemote, nothingRemote
+end
+
+local function fireBlade()
+	local bladeRemote, nothingRemote = getRemotes()
+
+	if bladeRemote then
+		bladeRemote:FireServer()
+	end
+
+	if nothingRemote then
+		nothingRemote:FireServer()
+	end
+
+	playSwing()
+end
+
+local function bringOrbs()
+	local root = getRoot()
+
+	if not root then
+		return
+	end
+
+	for _, object in ipairs(workspace:GetDescendants()) do
+		if object:IsA("BasePart") then
+			if string.find(string.lower(object.Name), "orb", 1, true) then
+				object.CFrame = root.CFrame
+			end
+		end
+	end
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ControlPanel"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 310, 0, 365)
+main.Position = UDim2.new(0.5, -155, 0.5, -182)
+main.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+main.BorderSizePixel = 0
+main.Active = true
+main.Parent = gui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 18)
+mainCorner.Parent = main
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(65, 65, 75)
+mainStroke.Thickness = 1.5
+mainStroke.Transparency = 0.15
+mainStroke.Parent = main
+
+local shadow = Instance.new("ImageLabel")
+shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+shadow.Position = UDim2.new(0.5, 0, 0.5, 7)
+shadow.Size = UDim2.new(1, 35, 1, 35)
+shadow.BackgroundTransparency = 1
+shadow.Image = "rbxassetid://1316045217"
+shadow.ImageTransparency = 0.55
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+shadow.ZIndex = 0
+shadow.Parent = main
+
+main.ZIndex = 2
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1, 0, 0, 65)
+top.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
+top.BorderSizePixel = 0
+top.Active = true
+top.ZIndex = 3
+top.Parent = main
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 18)
+topCorner.Parent = top
+
+local topCover = Instance.new("Frame")
+topCover.Size = UDim2.new(1, 0, 0, 18)
+topCover.Position = UDim2.new(0, 0, 1, -18)
+topCover.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
+topCover.BorderSizePixel = 0
+topCover.ZIndex = 3
+topCover.Parent = top
+
+local title = Instance.new("TextLabel")
+title.Position = UDim2.new(0, 18, 0, 9)
+title.Size = UDim2.new(1, -110, 0, 25)
+title.BackgroundTransparency = 1
+title.Text = "CONTROL PANEL"
+title.TextColor3 = Color3.fromRGB(245, 245, 250)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 4
+title.Parent = top
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Position = UDim2.new(0, 19, 0, 34)
+subtitle.Size = UDim2.new(1, -120, 0, 18)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "WEAPON CONTROL SYSTEM"
+subtitle.TextColor3 = Color3.fromRGB(105, 105, 120)
+subtitle.TextSize = 9
+subtitle.Font = Enum.Font.GothamMedium
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.ZIndex = 4
+subtitle.Parent = top
+
+local minimize = Instance.new("TextButton")
+minimize.Size = UDim2.new(0, 32, 0, 32)
+minimize.Position = UDim2.new(1, -72, 0, 16)
+minimize.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+minimize.BorderSizePixel = 0
+minimize.Text = "—"
+minimize.TextColor3 = Color3.fromRGB(220, 220, 225)
+minimize.TextSize = 18
+minimize.Font = Enum.Font.GothamBold
+minimize.ZIndex = 5
+minimize.Parent = top
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(1, 0)
+minCorner.Parent = minimize
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0, 32, 0, 32)
+close.Position = UDim2.new(1, -36, 0, 16)
+close.BackgroundColor3 = Color3.fromRGB(55, 25, 30)
+close.BorderSizePixel = 0
+close.Text = "×"
+close.TextColor3 = Color3.fromRGB(255, 115, 125)
+close.TextSize = 21
+close.Font = Enum.Font.GothamBold
+close.ZIndex = 5
+close.Parent = top
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(1, 0)
+closeCorner.Parent = close
+
+local statusBar = Instance.new("Frame")
+statusBar.Size = UDim2.new(1, -28, 0, 42)
+statusBar.Position = UDim2.new(0, 14, 0, 77)
+statusBar.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+statusBar.BorderSizePixel = 0
+statusBar.ZIndex = 3
+statusBar.Parent = main
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 11)
+statusCorner.Parent = statusBar
+
+local statusDot = Instance.new("Frame")
+statusDot.Size = UDim2.new(0, 9, 0, 9)
+statusDot.Position = UDim2.new(0, 13, 0.5, -4)
+statusDot.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
+statusDot.BorderSizePixel = 0
+statusDot.ZIndex = 4
+statusDot.Parent = statusBar
+
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = statusDot
+
+local statusText = Instance.new("TextLabel")
+statusText.Position = UDim2.new(0, 32, 0, 0)
+statusText.Size = UDim2.new(0.55, 0, 1, 0)
+statusText.BackgroundTransparency = 1
+statusText.Text = "SYSTEM ONLINE"
+statusText.TextColor3 = Color3.fromRGB(190, 190, 200)
+statusText.TextSize = 11
+statusText.Font = Enum.Font.GothamBold
+statusText.TextXAlignment = Enum.TextXAlignment.Left
+statusText.ZIndex = 4
+statusText.Parent = statusBar
+
+local playerCount = Instance.new("TextLabel")
+playerCount.Position = UDim2.new(0.55, 0, 0, 0)
+playerCount.Size = UDim2.new(0.45, -10, 1, 0)
+playerCount.BackgroundTransparency = 1
+playerCount.Text = "PLAYERS 0"
+playerCount.TextColor3 = Color3.fromRGB(105, 105, 120)
+playerCount.TextSize = 10
+playerCount.Font = Enum.Font.GothamBold
+playerCount.TextXAlignment = Enum.TextXAlignment.Right
+playerCount.ZIndex = 4
+playerCount.Parent = statusBar
+
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1, -28, 0, 34)
+tabBar.Position = UDim2.new(0, 14, 0, 128)
+tabBar.BackgroundTransparency = 1
+tabBar.ZIndex = 3
+tabBar.Parent = main
+
+local weaponsTab = Instance.new("TextButton")
+weaponsTab.Size = UDim2.new(0.5, -4, 1, 0)
+weaponsTab.BackgroundColor3 = Color3.fromRGB(50, 50, 62)
+weaponsTab.BorderSizePixel = 0
+weaponsTab.Text = "WEAPONS"
+weaponsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+weaponsTab.TextSize = 10
+weaponsTab.Font = Enum.Font.GothamBold
+weaponsTab.ZIndex = 4
+weaponsTab.Parent = tabBar
+
+local weaponsCorner = Instance.new("UICorner")
+weaponsCorner.CornerRadius = UDim.new(0, 9)
+weaponsCorner.Parent = weaponsTab
+
+local infoTab = Instance.new("TextButton")
+infoTab.Size = UDim2.new(0.5, -4, 1, 0)
+infoTab.Position = UDim2.new(0.5, 4, 0, 0)
+infoTab.BackgroundColor3 = Color3.fromRGB(25, 25, 31)
+infoTab.BorderSizePixel = 0
+infoTab.Text = "STATUS"
+infoTab.TextColor3 = Color3.fromRGB(115, 115, 125)
+infoTab.TextSize = 10
+infoTab.Font = Enum.Font.GothamBold
+infoTab.ZIndex = 4
+infoTab.Parent = tabBar
+
+local infoCorner = Instance.new("UICorner")
+infoCorner.CornerRadius = UDim.new(0, 9)
+infoCorner.Parent = infoTab
+
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, -28, 0, 185)
+content.Position = UDim2.new(0, 14, 0, 174)
+content.BackgroundTransparency = 1
+content.ZIndex = 3
+content.Parent = main
+
+local weaponPage = Instance.new("Frame")
+weaponPage.Size = UDim2.new(1, 0, 1, 0)
+weaponPage.BackgroundTransparency = 1
+weaponPage.ZIndex = 3
+weaponPage.Parent = content
+
+local function makeControl(text, y)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(1, 0, 0, 50)
+	button.Position = UDim2.new(0, 0, 0, y)
+	button.BackgroundColor3 = Color3.fromRGB(27, 27, 34)
+	button.BorderSizePixel = 0
+	button.Text = ""
+	button.AutoButtonColor = false
+	button.ZIndex = 4
+	button.Parent = weaponPage
+
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 12)
+	c.Parent = button
+
+	local s = Instance.new("UIStroke")
+	s.Color = Color3.fromRGB(45, 45, 55)
+	s.Thickness = 1
+	s.Parent = button
+
+	local label = Instance.new("TextLabel")
+	label.Position = UDim2.new(0, 15, 0, 0)
+	label.Size = UDim2.new(0.65, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(220, 220, 225)
+	label.TextSize = 12
+	label.Font = Enum.Font.GothamBold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.ZIndex = 5
+	label.Parent = button
+
+	local pill = Instance.new("Frame")
+	pill.Size = UDim2.new(0, 45, 0, 24)
+	pill.Position = UDim2.new(1, -57, 0.5, -12)
+	pill.BackgroundColor3 = Color3.fromRGB(45, 45, 53)
+	pill.BorderSizePixel = 0
+	pill.ZIndex = 5
+	pill.Parent = button
+
+	local pillCorner = Instance.new("UICorner")
+	pillCorner.CornerRadius = UDim.new(1, 0)
+	pillCorner.Parent = pill
+
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 18, 0, 18)
+	knob.Position = UDim2.new(0, 3, 0.5, -9)
+	knob.BackgroundColor3 = Color3.fromRGB(150, 150, 160)
+	knob.BorderSizePixel = 0
+	knob.ZIndex = 6
+	knob.Parent = pill
+
+	local knobCorner = Instance.new("UICorner")
+	knobCorner.CornerRadius = UDim.new(1, 0)
+	knobCorner.Parent = knob
+
+	return button, pill, knob
+end
+
+local bladeButton, bladePill, bladeKnob = makeControl("BLADE POWER", 0)
+local orbButton, orbPill, orbKnob = makeControl("AUTO ORB", 59)
+
+local toolCard = Instance.new("Frame")
+toolCard.Size = UDim2.new(1, 0, 0, 50)
+toolCard.Position = UDim2.new(0, 0, 0, 118)
+toolCard.BackgroundColor3 = Color3.fromRGB(21, 21, 27)
+toolCard.BorderSizePixel = 0
+toolCard.ZIndex = 4
+toolCard.Parent = weaponPage
+
+local toolCorner = Instance.new("UICorner")
+toolCorner.CornerRadius = UDim.new(0, 12)
+toolCorner.Parent = toolCard
+
+local toolName = Instance.new("TextLabel")
+toolName.Position = UDim2.new(0, 15, 0, 5)
+toolName.Size = UDim2.new(0.7, 0, 0, 19)
+toolName.BackgroundTransparency = 1
+toolName.Text = "EQUIPPED TOOL"
+toolName.TextColor3 = Color3.fromRGB(95, 95, 110)
+toolName.TextSize = 8
+toolName.Font = Enum.Font.GothamBold
+toolName.TextXAlignment = Enum.TextXAlignment.Left
+toolName.ZIndex = 5
+toolName.Parent = toolCard
+
+local toolValue = Instance.new("TextLabel")
+toolValue.Position = UDim2.new(0, 15, 0, 22)
+toolValue.Size = UDim2.new(0.8, 0, 0, 20)
+toolValue.BackgroundTransparency = 1
+toolValue.Text = "NONE"
+toolValue.TextColor3 = Color3.fromRGB(220, 220, 225)
+toolValue.TextSize = 11
+toolValue.Font = Enum.Font.GothamBold
+toolValue.TextXAlignment = Enum.TextXAlignment.Left
+toolValue.ZIndex = 5
+toolValue.Parent = toolCard
+
+local infoPage = Instance.new("Frame")
+infoPage.Size = UDim2.new(1, 0, 1, 0)
+infoPage.BackgroundTransparency = 1
+infoPage.Visible = false
+infoPage.ZIndex = 3
+infoPage.Parent = content
+
+local infoTitle = Instance.new("TextLabel")
+infoTitle.Size = UDim2.new(1, 0, 0, 28)
+infoTitle.BackgroundTransparency = 1
+infoTitle.Text = "SYSTEM STATUS"
+infoTitle.TextColor3 = Color3.fromRGB(235, 235, 240)
+infoTitle.TextSize = 13
+infoTitle.Font = Enum.Font.GothamBold
+infoTitle.TextXAlignment = Enum.TextXAlignment.Left
+infoTitle.ZIndex = 4
+infoTitle.Parent = infoPage
+
+local infoText = Instance.new("TextLabel")
+infoText.Position = UDim2.new(0, 0, 0, 35)
+infoText.Size = UDim2.new(1, 0, 0, 130)
+infoText.BackgroundColor3 = Color3.fromRGB(21, 21, 27)
+infoText.BorderSizePixel = 0
+infoText.Text = ""
+infoText.TextColor3 = Color3.fromRGB(155, 155, 170)
+infoText.TextSize = 11
+infoText.Font = Enum.Font.Code
+infoText.TextXAlignment = Enum.TextXAlignment.Left
+infoText.TextYAlignment = Enum.TextYAlignment.Top
+infoText.ZIndex = 4
+infoText.Parent = infoPage
+
+local infoTextCorner = Instance.new("UICorner")
+infoTextCorner.CornerRadius = UDim.new(0, 12)
+infoTextCorner.Parent = infoText
+
+local footer = Instance.new("TextLabel")
+footer.Size = UDim2.new(1, -28, 0, 22)
+footer.Position = UDim2.new(0, 14, 1, -29)
+footer.BackgroundTransparency = 1
+footer.Text = "CONTROL INTERFACE  •  ONLINE"
+footer.TextColor3 = Color3.fromRGB(65, 65, 75)
+footer.TextSize = 8
+footer.Font = Enum.Font.GothamBold
+footer.TextXAlignment = Enum.TextXAlignment.Center
+footer.ZIndex = 4
+footer.Parent = main
+
+local minimized = false
+
+local normalSize = main.Size
+local normalPosition = main.Position
+
+local function toggleVisual(button, pill, knob, enabled)
+	local targetPill
+	local targetKnob
+
+	if enabled then
+		targetPill = Color3.fromRGB(55, 125, 80)
+		targetKnob = Color3.fromRGB(235, 255, 240)
+	else
+		targetPill = Color3.fromRGB(45, 45, 53)
+		targetKnob = Color3.fromRGB(150, 150, 160)
+	end
+
+	TweenService:Create(
+		pill,
+		TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{BackgroundColor3 = targetPill}
+	):Play()
+
+	TweenService:Create(
+		knob,
+		TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{
+			Position = enabled
+				and UDim2.new(1, -21, 0.5, -9)
+				or UDim2.new(0, 3, 0.5, -9),
+			BackgroundColor3 = targetKnob
+		}
+	):Play()
+
+	TweenService:Create(
+		button,
+		TweenInfo.new(0.18),
+		{
+			BackgroundColor3 = enabled
+				and Color3.fromRGB(30, 38, 33)
+				or Color3.fromRGB(27, 27, 34)
+		}
+	):Play()
+end
+
+bladeButton.MouseButton1Click:Connect(function()
+	bladeRunning = not bladeRunning
+
+	toggleVisual(
+		bladeButton,
+		bladePill,
+		bladeKnob,
+		bladeRunning
+	)
+
+	statusText.Text = bladeRunning
+		and "BLADE SYSTEM ACTIVE"
+		or "SYSTEM ONLINE"
+end)
+
+orbButton.MouseButton1Click:Connect(function()
+	orbRunning = not orbRunning
+
+	toggleVisual(
+		orbButton,
+		orbPill,
+		orbKnob,
+		orbRunning
+	)
+
+	statusText.Text = orbRunning
+		and "ORB SYSTEM ACTIVE"
+		or "SYSTEM ONLINE"
+end)
+
+weaponsTab.MouseButton1Click:Connect(function()
+	weaponPage.Visible = true
+	infoPage.Visible = false
+
+	weaponsTab.BackgroundColor3 = Color3.fromRGB(50, 50, 62)
+	weaponsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+	infoTab.BackgroundColor3 = Color3.fromRGB(25, 25, 31)
+	infoTab.TextColor3 = Color3.fromRGB(115, 115, 125)
+end)
+
+infoTab.MouseButton1Click:Connect(function()
+	weaponPage.Visible = false
+	infoPage.Visible = true
+
+	infoTab.BackgroundColor3 = Color3.fromRGB(50, 50, 62)
+	infoTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+	weaponsTab.BackgroundColor3 = Color3.fromRGB(25, 25, 31)
+	weaponsTab.TextColor3 = Color3.fromRGB(115, 115, 125)
+end)
+
+local dragging = false
+local dragStart
+local startPosition
+
+top.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = true
+		dragStart = input.Position
+		startPosition = main.Position
+	end
+end)
+
+top.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not dragging then
+		return
+	end
+
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement
+		and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
+	end
+
+	local delta = input.Position - dragStart
+
+	main.Position = UDim2.new(
+		startPosition.X.Scale,
+		startPosition.X.Offset + delta.X,
+		startPosition.Y.Scale,
+		startPosition.Y.Offset + delta.Y
+	)
+end)
+
+minimize.MouseButton1Click:Connect(function()
+	if not minimized then
+		minimized = true
+
+		minimize.Text = "□"
+
+		for _, object in ipairs(main:GetChildren()) do
+			if object ~= top
+				and object ~= topCover
+				and object ~= shadow
+				and object ~= mainCorner
+				and object ~= mainStroke then
+
+				if object:IsA("GuiObject") then
+					object.Visible = false
+				end
+			end
+		end
+
+		top.Visible = true
+		topCover.Visible = true
+		title.Visible = true
+		subtitle.Visible = false
+		minimize.Visible = true
+		close.Visible = true
+
+		TweenService:Create(
+			main,
+			TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+			{
+				Size = UDim2.new(0, 310, 0, 65)
+			}
+		):Play()
+	else
+		minimized = false
+
+		minimize.Text = "—"
+
+		TweenService:Create(
+			main,
+			TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+			{
+				Size = normalSize
+			}
+		):Play()
+
+		task.delay(0.2, function()
+			for _, object in ipairs(main:GetChildren()) do
+				if object:IsA("GuiObject") then
+					object.Visible = true
+				end
+			end
+		end)
+	end
+end)
+
+close.MouseButton1Click:Connect(function()
+	TweenService:Create(
+		main,
+		TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		{
+			Size = UDim2.new(0, 0, 0, 0)
+		}
+	):Play()
+
+	task.wait(0.2)
+
+	gui:Destroy()
+end)
+
+task.spawn(function()
+	while gui.Parent do
+		local count = #Players:GetPlayers()
+
+		playerCount.Text = "PLAYERS  " .. tostring(count)
+
+		infoText.Text =
+			"  SYSTEM\n\n" ..
+			"  STATUS       ONLINE\n" ..
+			"  PLAYERS      " .. tostring(count) .. "\n" ..
+			"  BLADE        " .. (bladeRunning and "ACTIVE" or "OFF") .. "\n" ..
+			"  ORB SYSTEM   " .. (orbRunning and "ACTIVE" or "OFF") .. "\n" ..
+			"  TOOL         " .. (getTool() and getTool().Name or "NONE")
+
+		local tool = getTool()
+
+		if tool then
+			toolValue.Text = tool.Name
+		else
+			toolValue.Text = "NONE"
+		end
+
+		task.wait(0.25)
+	end
+end)
+
+task.spawn(function()
+	while gui.Parent do
+		if bladeRunning then
+			fireBlade()
+		end
+
+		task.wait(0.05)
+	end
+end)
+
+task.spawn(function()
+	while gui.Parent do
+		if orbRunning then
+			bringOrbs()
+		end
+
+		task.wait(0.05)
+	end
+end)
