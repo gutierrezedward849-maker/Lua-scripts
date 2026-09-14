@@ -1,0 +1,254 @@
+--//▀█▀ ▄▀▄ █▀▀▄ █░█ ▄▀▀ █░█ ▄▀▀
+--//░█░ █░█ █▐█▀ ▄▀▄ ░▀▄ █░█ ░▀▄
+--//░▀░ ░▀░ ▀░▀▀ ▀░▀ ▀▀░ ▀▀▀ ▀▀░
+--//          MADE BY TORXSUS
+
+local CONFIG = {
+	PCEnabled = true,
+	MobileEnabled = true,
+	Keybind = Enum.KeyCode.R,
+	ClickMultiplier = 3,
+}
+
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+
+local enabled = false
+local character = nil
+local humanoid = nil
+
+local function cacheCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+end
+
+local function clearCharacter()
+	character = nil
+	humanoid = nil
+end
+
+player.CharacterAdded:Connect(cacheCharacter)
+player.CharacterRemoving:Connect(clearCharacter)
+
+if player.Character then
+	cacheCharacter(player.Character)
+end
+
+local function getEquippedTool()
+	if not character then
+		return nil
+	end
+
+	return character:FindFirstChildOfClass("Tool")
+end
+
+local COLORS = {
+	Background = Color3.fromRGB(24, 24, 27),
+	Border = Color3.fromRGB(50, 50, 56),
+	Off = Color3.fromRGB(63, 63, 70),
+	On = Color3.fromRGB(88, 196, 120),
+	TextMain = Color3.fromRGB(235, 235, 240),
+	TextSub = Color3.fromRGB(140, 140, 150),
+}
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoClickerGUI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.DisplayOrder = 1000
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.fromOffset(190, 56)
+main.Position = UDim2.new(1, -210, 0, 20)
+main.BackgroundColor3 = COLORS.Background
+main.BorderSizePixel = 0
+main.Active = true
+main.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 14)
+mainCorner.Parent = main
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = COLORS.Border
+mainStroke.Thickness = 1
+mainStroke.Parent = main
+
+local padding = Instance.new("UIPadding")
+padding.PaddingLeft = UDim.new(0, 14)
+padding.PaddingRight = UDim.new(0, 12)
+padding.Parent = main
+
+local layout = Instance.new("UIListLayout")
+layout.FillDirection = Enum.FillDirection.Horizontal
+layout.VerticalAlignment = Enum.VerticalAlignment.Center
+layout.Padding = UDim.new(0, 10)
+layout.Parent = main
+
+local textHolder = Instance.new("Frame")
+textHolder.BackgroundTransparency = 1
+textHolder.Size = UDim2.new(1, -56, 1, 0)
+textHolder.Parent = main
+
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, 0, 0, 20)
+title.Position = UDim2.new(0, 0, 0, 6)
+title.Font = Enum.Font.GothamBold
+title.Text = "AUTO CLICKER"
+title.TextSize = 13
+title.TextColor3 = COLORS.TextMain
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = textHolder
+
+local subtitle = Instance.new("TextLabel")
+subtitle.BackgroundTransparency = 1
+subtitle.Size = UDim2.new(1, 0, 0, 16)
+subtitle.Position = UDim2.new(0, 0, 0, 26)
+subtitle.Font = Enum.Font.Gotham
+subtitle.Text = CONFIG.PCEnabled and ("Press " .. CONFIG.Keybind.Name) or "Tap to toggle"
+subtitle.TextSize = 11
+subtitle.TextColor3 = COLORS.TextSub
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Parent = textHolder
+
+local switch = Instance.new("TextButton")
+switch.Name = "Switch"
+switch.Text = ""
+switch.AutoButtonColor = false
+switch.Size = UDim2.fromOffset(44, 24)
+switch.BackgroundColor3 = COLORS.Off
+switch.Parent = main
+
+local switchCorner = Instance.new("UICorner")
+switchCorner.CornerRadius = UDim.new(1, 0)
+switchCorner.Parent = switch
+
+local knob = Instance.new("Frame")
+knob.Name = "Knob"
+knob.Size = UDim2.fromOffset(18, 18)
+knob.Position = UDim2.new(0, 3, 0.5, -9)
+knob.BackgroundColor3 = COLORS.TextMain
+knob.Parent = switch
+
+local knobCorner = Instance.new("UICorner")
+knobCorner.CornerRadius = UDim.new(1, 0)
+knobCorner.Parent = knob
+
+do
+	local dragging = false
+	local dragStart
+	local startPos
+
+	main.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			dragging = true
+			dragStart = input.Position
+			startPos = main.Position
+		end
+	end)
+
+	main.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (
+			input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch
+		) then
+
+			local delta = input.Position - dragStart
+
+			main.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+local function setEnabled(state)
+	enabled = state
+
+	local trackGoal = enabled and COLORS.On or COLORS.Off
+
+	local knobGoal = enabled
+		and UDim2.new(0, 23, 0.5, -9)
+		or UDim2.new(0, 3, 0.5, -9)
+
+	TweenService:Create(
+		switch,
+		TweenInfo.new(0.18, Enum.EasingStyle.Quad),
+		{BackgroundColor3 = trackGoal}
+	):Play()
+
+	TweenService:Create(
+		knob,
+		TweenInfo.new(0.18, Enum.EasingStyle.Quad),
+		{Position = knobGoal}
+	):Play()
+end
+
+local function toggle()
+	setEnabled(not enabled)
+end
+
+switch.MouseButton1Click:Connect(toggle)
+
+if CONFIG.PCEnabled then
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then
+			return
+		end
+
+		if input.KeyCode == CONFIG.Keybind then
+			toggle()
+		end
+	end)
+end
+
+if not CONFIG.MobileEnabled
+	and UserInputService.TouchEnabled
+	and not UserInputService.KeyboardEnabled then
+
+	screenGui.Enabled = false
+end
+
+RunService.Heartbeat:Connect(function()
+	if not enabled or not humanoid then
+		return
+	end
+
+	if humanoid.Health <= 0 then
+		return
+	end
+
+	if humanoid:GetState() == Enum.HumanoidStateType.Dead then
+		return
+	end
+
+	local tool = getEquippedTool()
+
+	if not tool then
+		return
+	end
+
+	for _ = 1, CONFIG.ClickMultiplier do
+		tool:Activate()
+	end
+end)
