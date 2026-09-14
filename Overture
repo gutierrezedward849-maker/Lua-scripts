@@ -1,0 +1,338 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local Remote = ReplicatedStorage:WaitForChild("DealDamage")
+
+local RANGE = 20
+local INTERVAL = 0.25
+local DAMAGE = 100
+
+local Enabled = false
+local Destroyed = false
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "MobAutoFarm"
+Gui.ResetOnSpawn = false
+Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.fromOffset(210, 110)
+Main.Position = UDim2.new(0.5, -105, 0.5, -55)
+Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Main.BorderSizePixel = 0
+Main.Parent = Gui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -40, 0, 35)
+Title.Position = UDim2.fromOffset(10, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "NPC AUTO FARM"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Main
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(30, 30)
+Close.Position = UDim2.new(1, -35, 0, 3)
+Close.BackgroundTransparency = 1
+Close.Text = "X"
+Close.TextColor3 = Color3.fromRGB(255, 80, 80)
+Close.TextSize = 16
+Close.Font = Enum.Font.GothamBold
+Close.Parent = Main
+
+local Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.new(1, -20, 0, 40)
+Toggle.Position = UDim2.fromOffset(10, 45)
+Toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Toggle.BorderSizePixel = 0
+Toggle.Text = "Auto Farm: OFF"
+Toggle.TextColor3 = Color3.new(1, 1, 1)
+Toggle.TextSize = 15
+Toggle.Font = Enum.Font.GothamBold
+Toggle.Parent = Main
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = Toggle
+
+local dragging = false
+local dragStart
+local startPosition
+
+local function updateDrag(input)
+	if not dragging then
+		return
+	end
+
+	local delta = input.Position - dragStart
+
+	Main.Position = UDim2.new(
+		startPosition.X.Scale,
+		startPosition.X.Offset + delta.X,
+		startPosition.Y.Scale,
+		startPosition.Y.Offset + delta.Y
+	)
+end
+
+Title.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = true
+		dragStart = input.Position
+		startPosition = Main.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		updateDrag(input)
+	end
+end)
+
+local function getCharacter()
+	return LocalPlayer.Character
+end
+
+local function getNearbyNPCs()
+	local Character = getCharacter()
+	if not Character then
+		return {}
+	end
+
+	local Root = Character:FindFirstChild("HumanoidRootPart")
+	if not Root then
+		return {}
+	end
+
+	local Results = {}
+
+	for _, Model in ipairs(workspace:GetDescendants()) do
+		if not Model:IsA("Model") then
+			continue
+		end
+
+		local Humanoid = Model:FindFirstChildOfClass("Humanoid")
+
+		if not Humanoid or Humanoid.Health <= 0 then
+			continue
+		end
+
+		if Players:GetPlayerFromCharacter(Model) then
+			continue
+		end
+
+		if Model == Character then
+			continue
+		end
+
+		local TargetRoot =
+			Model:FindFirstChild("HumanoidRootPart")
+			or Model:FindFirstChild("Torso")
+			or Model:FindFirstChild("UpperTorso")
+
+		if not TargetRoot then
+			continue
+		end
+
+		local Distance = (Root.Position - TargetRoot.Position).Magnitude
+
+		if Distance <= RANGE then
+			table.insert(Results, {
+				Model = Model,
+				Humanoid = Humanoid,
+				Root = TargetRoot
+			})
+		end
+	end
+
+	return Results
+end
+
+local function getHitbox()
+	local Character = getCharacter()
+
+	if not Character then
+		return nil
+	end
+
+	local HitBoxes = Character:FindFirstChild("HitBoxes")
+
+	if not HitBoxes then
+		return nil
+	end
+
+	return HitBoxes:FindFirstChild("HitBoxRight")
+end
+
+local function attackNPC(NPC)
+	local Character = getCharacter()
+	local HitBox = getHitbox()
+
+	if not Character or not HitBox then
+		return
+	end
+
+	local Target = NPC.Model
+
+	local TargetPart =
+		Target:FindFirstChild("Left Arm")
+		or Target:FindFirstChild("LeftUpperArm")
+		or Target:FindFirstChild("Torso")
+		or Target:FindFirstChild("UpperTorso")
+		or Target:FindFirstChild("HumanoidRootPart")
+
+	if not TargetPart then
+		return
+	end
+
+	local args = {
+		{
+			Type = "Normal",
+			Melee = true,
+			HitBoxPart = HitBox,
+			Part = TargetPart,
+			Lifesteal = 0,
+			Knockback = {},
+			Status = {},
+			Character = Character,
+			Critical = 1,
+			Amount = DAMAGE,
+			Projectile = false,
+			Name = "SkillSpin",
+			ScreenShake = 0.3,
+			TargetCharacter = Target
+		},
+
+		{
+			Defense = {
+				1,
+				1,
+				{},
+				{
+					1
+				}
+			},
+
+			Power = {
+				1.5,
+				1,
+				{},
+				{
+					1.5,
+					1
+				}
+			},
+
+			HealingMultiplier = {
+				1,
+				1,
+				{},
+				{}
+			},
+
+			StunTimeMultiplier = {
+				1,
+				1,
+				{},
+				{}
+			},
+
+			CooldownRate = {
+				1,
+				1,
+				{},
+				{}
+			},
+
+			Speed = {
+				0.7,
+				1,
+				{},
+				{
+					0.7
+				}
+			},
+
+			ImpairMultiplier = {
+				1,
+				1,
+				{},
+				{}
+			},
+
+			KnockbackMultiplier = {
+				1,
+				1,
+				{},
+				{}
+			},
+
+			HealthRegen = {
+				1,
+				1,
+				{},
+				{}
+			}
+		}
+	}
+
+	Remote:FireServer(unpack(args))
+end
+
+Toggle.MouseButton1Click:Connect(function()
+	Enabled = not Enabled
+
+	if Enabled then
+		Toggle.Text = "Auto Farm: ON"
+	else
+		Toggle.Text = "Auto Farm: OFF"
+	end
+end)
+
+Close.MouseButton1Click:Connect(function()
+	Destroyed = true
+	Enabled = false
+
+	Gui:Destroy()
+end)
+
+task.spawn(function()
+	while not Destroyed do
+		if Enabled then
+			local NPCs = getNearbyNPCs()
+
+			for _, NPC in ipairs(NPCs) do
+				if not Enabled or Destroyed then
+					break
+				end
+
+				if NPC.Model
+					and NPC.Humanoid
+					and NPC.Humanoid.Health > 0
+					and Players:GetPlayerFromCharacter(NPC.Model) == nil then
+
+					attackNPC(NPC)
+				end
+			end
+		end
+
+		task.wait(INTERVAL)
+	end
+end)
